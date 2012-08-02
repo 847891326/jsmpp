@@ -263,6 +263,40 @@ public class SMPPSession extends AbstractSession implements ClientSession {
 		}
 	}
 	
+	/* only connect */
+	public String connectOnly(String host, int port) 
+	        throws IOException {
+	    logger.debug("Connect and bind to {} port {}", host, port);
+		if (sequence().currentValue() != 1) {
+			throw new IOException("Failed connecting");
+		}
+		
+		conn = connFactory.createConnection(host, port);
+		logger.info("Connected");
+		
+		conn.setSoTimeout(getEnquireLinkTimer());
+		
+		sessionContext.open();
+
+        in = new DataInputStream(conn.getInputStream());
+		out = conn.getOutputStream();
+		
+		pduReaderWorker = new PDUReaderWorker();
+		pduReaderWorker.start();
+	        	
+		return null;
+
+	 }
+	
+	/* after connect */
+	public void connectAfter(BindType bindType){
+		sessionContext.bound(bindType);
+			
+		enquireLinkSender = new EnquireLinkSender();
+		enquireLinkSender.start();
+	}
+
+	
 	/**
 	 * Sending bind.
 	 * 
@@ -294,7 +328,14 @@ public class SMPPSession extends AbstractSession implements ClientSession {
                 addrNpi, addressRange);
 	    
 	    BindResp resp = (BindResp)executeSendCommand(task, timeout);
-	    OptionalParameter.Sc_interface_version sc_version = resp.getOptionalParameter(Sc_interface_version.class);
+	    OptionalParameter.Sc_interface_version sc_version;
+		
+		// for SMPPSim hack
+		if(resp.getOptionalParameters() == null){
+			sc_version = new Sc_interface_version(InterfaceVersion.IF_34);
+		}else{
+			sc_version = resp.getOptionalParameter(Sc_interface_version.class);
+		}
 	    if(sc_version != null) {
 		    logger.info("Other side reports smpp interface version {}", sc_version);
 	    }
@@ -633,6 +674,12 @@ public class SMPPSession extends AbstractSession implements ClientSession {
 	            notifyNoActivity();
 	        } catch (IOException e) {
 	            logger.warn("IOException while reading: {}", e.getMessage());
+	        	// before receive packet closing bug hack
+	        	try{
+	        		Thread.sleep(100);
+	        	}catch(Exception ee){
+	        		
+	        	}
 	            close();
 	        }
 	    }

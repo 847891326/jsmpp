@@ -253,7 +253,7 @@ public abstract class AbstractSession implements Session {
      * @throws NegativeResponseException if the negative response found.
      * @throws IOException if there is an IO error found.
      */
-    protected Command executeSendCommand(SendCommandTask task, long timeout)
+    public Command executeSendCommand(SendCommandTask task, long timeout)
             throws PDUException, ResponseTimeoutException,
             InvalidResponseException, NegativeResponseException, IOException {
         
